@@ -1,53 +1,37 @@
-# -*- coding: utf-8 -*-
-import dash
-import dash_core_components as dcc
-import dash_html_components as html
-from dash.dependencies import Input, Output
-from pages import (
-    overview,
-    pricePerformance,
-    portfolioManagement,
-    feesMins,
-    distributions,
-    newsReviews,
-)
+from dash import Dash, dcc, html, Input, Output
+import plotly.express as px
 
-app = dash.Dash(
-    __name__, meta_tags=[{"name": "viewport", "content": "width=device-width"}],
-)
-app.title = "Financial Report"
-server = app.server
+import pandas as pd
 
-# Describe the layout/ UI of the app
-app.layout = html.Div(
-    [dcc.Location(id="url", refresh=False), html.Div(id="page-content")]
-)
+df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminderDataFiveYear.csv')
 
-# Update page
-@app.callback(Output("page-content", "children"), [Input("url", "pathname")])
-def display_page(pathname):
-    if pathname == "/dash-financial-report/price-performance":
-        return pricePerformance.create_layout(app)
-    elif pathname == "/dash-financial-report/portfolio-management":
-        return portfolioManagement.create_layout(app)
-    elif pathname == "/dash-financial-report/fees":
-        return feesMins.create_layout(app)
-    elif pathname == "/dash-financial-report/distributions":
-        return distributions.create_layout(app)
-    elif pathname == "/dash-financial-report/news-and-reviews":
-        return newsReviews.create_layout(app)
-    elif pathname == "/dash-financial-report/full-view":
-        return (
-            overview.create_layout(app),
-            pricePerformance.create_layout(app),
-            portfolioManagement.create_layout(app),
-            feesMins.create_layout(app),
-            distributions.create_layout(app),
-            newsReviews.create_layout(app),
-        )
-    else:
-        return overview.create_layout(app)
+app = Dash(__name__)
+
+app.layout = html.Div([
+    dcc.Graph(id='graph-with-slider'),
+    dcc.Slider(
+        df['year'].min(),
+        df['year'].max(),
+        step=None,
+        value=df['year'].min(),
+        marks={str(year): str(year) for year in df['year'].unique()},
+        id='year-slider'
+    )
+])
 
 
-if __name__ == "__main__":
+@app.callback(
+    Output('graph-with-slider', 'figure'),
+    Input('year-slider', 'value'))
+def update_figure(selected_year):
+    filtered_df = df[df.year == selected_year]
+
+    fig = px.scatter(filtered_df, x="gdpPercap", y="lifeExp",
+                     size="pop", color="continent", hover_name="country",
+                     log_x=True, size_max=55)
+
+    return fig
+
+
+if __name__ == '__main__':
     app.run_server(debug=True)
